@@ -23,10 +23,10 @@ export function usePortfolio() {
     const saved = loadPortfolio();
     return saved || defaultPortfolio.map(s => ({
       ...s,
-      dividendPerShare: 0,
-      dividendYield: 0,
-      dividends: { annual: 0, monthly: 0, weekly: 0, daily: 0 },
-      loading: true,
+      dividendPerShare: s.dividendPerShare || 0,
+      dividendYield: s.dividendYield || 0,
+      dividends: calcDividends(s.dividendPerShare || 0, s.shares),
+      loading: false,
       error: null,
     }));
   });

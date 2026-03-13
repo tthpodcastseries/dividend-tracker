@@ -23,7 +23,7 @@ export default function App() {
   } = usePortfolio();
 
   const [period, setPeriod] = useState('monthly');
-  const [showApiModal, setShowApiModal] = useState(!apiKey);
+  const [showApiModal, setShowApiModal] = useState(false);
 
   useEffect(() => {
     if (apiKey && stocks.some(s => s.loading)) {
@@ -38,6 +38,7 @@ export default function App() {
 
   const handleRefresh = () => {
     clearDividendCache();
+    localStorage.removeItem('dividend_tracker_portfolio');
     window.location.reload();
   };
 
