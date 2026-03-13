@@ -3,7 +3,7 @@ import { formatCurrency, getPeriodLabel, PERIODS } from '../utils/dividendCalc';
 // Approximate USD → CAD exchange rate (update as needed)
 const USD_TO_CAD = 1.44;
 
-export default function DividendSummary({ totals }) {
+export default function DividendSummary({ totals, activePeriod }) {
   const currencies = Object.keys(totals);
 
   return (
@@ -13,9 +13,10 @@ export default function DividendSummary({ totals }) {
         const cadAmount = totals['CAD']?.[period] || 0;
         const usdAmount = totals['USD']?.[period] || 0;
         const totalCad = cadAmount + (usdAmount * USD_TO_CAD);
+        const isActive = period === activePeriod;
 
         return (
-          <div key={period} className="summary-card">
+          <div key={period} className={`summary-card${isActive ? ' summary-card-active' : ''}`}>
             <h3>{getPeriodLabel(period)}</h3>
             {currencies.map(cur => (
               <div key={cur} className="summary-amount">

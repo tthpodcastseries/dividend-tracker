@@ -47,7 +47,7 @@ export default function App() {
     <div className="app">
       {showApiModal && <ApiKeyInput onSave={handleSaveKey} />}
 
-      <Header totals={totals} period={period} />
+      <Header totals={totals} period={period} stockCount={stocks.length} />
 
       <div className="toolbar">
         <TimeToggle period={period} onChange={setPeriod} />
@@ -64,7 +64,7 @@ export default function App() {
 
       {fetching && <div className="fetching-bar">Fetching dividend data...</div>}
 
-      <DividendSummary totals={totals} />
+      <DividendSummary totals={totals} activePeriod={period} />
       <DividendChart stocks={stocks} period={period} />
       <PortfolioTable stocks={stocks} period={period} onRemove={removeStock} />
       <DripProjection stocks={stocks} />

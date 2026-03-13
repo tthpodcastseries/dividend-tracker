@@ -5,6 +5,8 @@ export default function PortfolioTable({ stocks, period, onRemove }) {
   const sorted = [...stocks].sort((a, b) => a.ticker.localeCompare(b.ticker));
 
   return (
+    <>
+    <h3 className="section-heading">Portfolio Holdings</h3>
     <div className="table-wrapper">
       <table className="portfolio-table">
         <thead>
@@ -59,5 +61,6 @@ export default function PortfolioTable({ stocks, period, onRemove }) {
         </tbody>
       </table>
     </div>
+    </>
   );
 }

@@ -1,4 +1,4 @@
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 import { formatCurrency } from '../utils/dividendCalc';
 
 const COLORS = [
@@ -29,15 +29,15 @@ export default function DividendChart({ stocks, period }) {
         Dividend Income by Stock ({period.charAt(0).toUpperCase() + period.slice(1)})
       </h3>
       <ResponsiveContainer width="100%" height={350}>
-        <BarChart data={data} margin={{ top: 10, right: 30, left: 20, bottom: 40 }}>
+        <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 40 }}>
           <XAxis
             dataKey="ticker"
-            tick={{ fill: '#94a3b8', fontSize: 12 }}
+            tick={{ fill: '#94a3b8', fontSize: 11 }}
             angle={-45}
             textAnchor="end"
             height={60}
           />
-          <YAxis tick={{ fill: '#94a3b8', fontSize: 12 }} />
+          <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} />
           <Tooltip
             contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8 }}
             labelStyle={{ color: '#e2e8f0' }}
@@ -45,10 +45,16 @@ export default function DividendChart({ stocks, period }) {
               [formatCurrency(value, props.payload.currency), 'Dividend']
             }
           />
-          <Bar dataKey="amount" radius={[4, 4, 0, 0]}>
+          <Bar dataKey="amount" radius={[6, 6, 0, 0]}>
             {data.map((_, index) => (
               <Cell key={index} fill={COLORS[index % COLORS.length]} />
             ))}
+            <LabelList
+              dataKey="amount"
+              position="top"
+              style={{ fill: '#94a3b8', fontSize: 10, fontWeight: 600 }}
+              formatter={(v) => `$${v.toFixed(0)}`}
+            />
           </Bar>
         </BarChart>
       </ResponsiveContainer>
