@@ -7,6 +7,7 @@ import TimeToggle from './components/TimeToggle';
 import DividendSummary from './components/DividendSummary';
 import PortfolioTable from './components/PortfolioTable';
 import DividendChart from './components/DividendChart';
+import DripProjection from './components/DripProjection';
 import { clearDividendCache } from './utils/api';
 import './App.css';
 
@@ -66,6 +67,7 @@ export default function App() {
       <DividendSummary totals={totals} />
       <DividendChart stocks={stocks} period={period} />
       <PortfolioTable stocks={stocks} period={period} onRemove={removeStock} />
+      <DripProjection stocks={stocks} />
     </div>
   );
 }

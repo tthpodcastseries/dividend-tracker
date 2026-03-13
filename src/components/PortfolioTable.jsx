@@ -1,7 +1,8 @@
 import { formatCurrency, formatPercent } from '../utils/dividendCalc';
 
 export default function PortfolioTable({ stocks, period, onRemove }) {
-  const sorted = [...stocks].sort((a, b) => (b.dividends?.[period] || 0) - (a.dividends?.[period] || 0));
+  // Sort alphabetically by ticker
+  const sorted = [...stocks].sort((a, b) => a.ticker.localeCompare(b.ticker));
 
   return (
     <div className="table-wrapper">
@@ -11,6 +12,7 @@ export default function PortfolioTable({ stocks, period, onRemove }) {
             <th>Ticker</th>
             <th>Company</th>
             <th className="right">Shares</th>
+            <th className="right">Price</th>
             <th className="right">Div/Share</th>
             <th className="right">Yield</th>
             <th className="right">{period.charAt(0).toUpperCase() + period.slice(1)} Income</th>
@@ -25,6 +27,9 @@ export default function PortfolioTable({ stocks, period, onRemove }) {
               <td className="ticker-cell">{stock.ticker}</td>
               <td className="name-cell">{stock.fetchedName || stock.name}</td>
               <td className="right">{stock.shares.toLocaleString(undefined, { maximumFractionDigits: 4 })}</td>
+              <td className="right">
+                {stock.price ? formatCurrency(stock.price, stock.currency) : '—'}
+              </td>
               <td className="right">
                 {stock.loading
                   ? '...'

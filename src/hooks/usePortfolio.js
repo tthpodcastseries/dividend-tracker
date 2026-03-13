@@ -21,7 +21,16 @@ function savePortfolio(portfolio) {
 export function usePortfolio() {
   const [stocks, setStocks] = useState(() => {
     const saved = loadPortfolio();
-    return saved || defaultPortfolio.map(s => ({
+    if (saved) {
+      // Merge saved data with defaults to pick up any new fields (e.g. price)
+      const defaultMap = {};
+      for (const d of defaultPortfolio) defaultMap[d.ticker] = d;
+      return saved.map(s => ({
+        ...s,
+        price: s.price || defaultMap[s.ticker]?.price || 0,
+      }));
+    }
+    return defaultPortfolio.map(s => ({
       ...s,
       dividendPerShare: s.dividendPerShare || 0,
       dividendYield: s.dividendYield || 0,
