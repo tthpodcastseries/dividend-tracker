@@ -1,15 +1,17 @@
 /**
- * DRIP Tracker — calculates and records actual dividend reinvestment purchases.
+ * DRIP Tracker — calculates and records actual dividend reinvestment purchases
+ * using real payment dates (payMonths + payDay) per stock.
  *
- * Each stock tracks:
- *   - dripEnabled: boolean
- *   - dripLog: array of { date, dividendAmount, sharesPurchased, priceAtPurchase }
- *   - lastDripDate: ISO date string of last applied DRIP
+ * Each stock in dripState tracks:
+ *   - enabled: boolean
+ *   - log: array of { date, dividendAmount, sharesPurchased, priceAtPurchase, paymentDate }
+ *   - lastDripDate: ISO date string — baseline from which to count new payments
  *
- * Payment frequencies determine how many payments have occurred since lastDripDate.
+ * Positions are current as of 2026-03-11, so that is the default baseline.
  */
 
 const DRIP_KEY = 'dividend_tracker_drip';
+const BASELINE_DATE = '2026-03-11';
 
 /** How many payments per year for each frequency */
 const PAYMENTS_PER_YEAR = {
@@ -17,15 +19,6 @@ const PAYMENTS_PER_YEAR = {
   quarterly: 4,
   'semi-annual': 2,
   annual: 1,
-  none: 0,
-};
-
-/** Months between payments */
-const MONTHS_BETWEEN = {
-  monthly: 1,
-  quarterly: 3,
-  'semi-annual': 6,
-  annual: 12,
   none: 0,
 };
 
@@ -46,29 +39,49 @@ export function saveDripState(state) {
 }
 
 /**
- * Calculate the number of dividend payments that have occurred since lastDripDate.
- * If no lastDripDate, returns 1 (first-time application = 1 period).
+ * Get all payment dates for a stock that fall between afterDate and today.
+ * Uses payMonths (array of months 1-12) and payDay (day of month).
+ * Returns array of Date objects in chronological order.
  */
-export function getPendingPayments(payFrequency, lastDripDate) {
-  if (!payFrequency || payFrequency === 'none') return 0;
+export function getPaymentDatesSince(stock, afterDateStr) {
+  const { payMonths, payDay, payFrequency } = stock;
+  if (!payMonths || payMonths.length === 0 || payFrequency === 'none') return [];
 
-  const monthsBetween = MONTHS_BETWEEN[payFrequency] || 3;
-
-  if (!lastDripDate) return 1; // First time — apply one period
-
-  const last = new Date(lastDripDate);
+  const after = new Date(afterDateStr || BASELINE_DATE);
   const now = new Date();
+  const dates = [];
 
-  // Count how many full payment periods have passed
-  const monthsElapsed =
-    (now.getFullYear() - last.getFullYear()) * 12 + (now.getMonth() - last.getMonth());
+  // Iterate year by year from the year of afterDate to current year
+  for (let year = after.getFullYear(); year <= now.getFullYear(); year++) {
+    for (const month of payMonths) {
+      const payDate = new Date(year, month - 1, payDay || 1);
+      // Must be strictly after the baseline and not in the future
+      if (payDate > after && payDate <= now) {
+        dates.push(payDate);
+      }
+    }
+  }
 
-  return Math.floor(monthsElapsed / monthsBetween);
+  return dates.sort((a, b) => a - b);
+}
+
+/**
+ * Count pending payments for a stock since its lastDripDate (or baseline).
+ */
+export function getPendingPayments(stock, lastDripDate) {
+  return getPaymentDatesSince(stock, lastDripDate || BASELINE_DATE).length;
+}
+
+/**
+ * Get the pending payment dates for display purposes.
+ */
+export function getPendingPaymentDates(stock, lastDripDate) {
+  return getPaymentDatesSince(stock, lastDripDate || BASELINE_DATE);
 }
 
 /**
  * Calculate DRIP purchase for a single stock for N payment periods.
- * Returns { dividendAmount, sharesPurchased, priceAtPurchase } or null if nothing to apply.
+ * Returns { dividendAmount, sharesPurchased, priceAtPurchase, periods } or null.
  */
 export function calcDripPurchase(stock, periods = 1) {
   const { dividendPerShare, shares, price, payFrequency } = stock;
@@ -79,10 +92,9 @@ export function calcDripPurchase(stock, periods = 1) {
   if (periods <= 0) return null;
 
   const paymentsPerYear = PAYMENTS_PER_YEAR[payFrequency] || 4;
-  // Dividend per payment = annualDiv / paymentsPerYear
   const divPerPayment = dividendPerShare / paymentsPerYear;
 
-  // Total dividend for all pending periods (compounding: each period adds shares)
+  // Compound: each period's DRIP shares earn dividends in subsequent periods
   let currentShares = shares;
   let totalDividend = 0;
   let totalNewShares = 0;
@@ -104,27 +116,13 @@ export function calcDripPurchase(stock, periods = 1) {
 }
 
 /**
- * Get a summary of pending DRIP for all enabled stocks.
+ * Calculate a manual DRIP purchase given a dividend amount and price.
  */
-export function getPendingDripSummary(stocks, dripState) {
-  const pending = [];
-
-  for (const stock of stocks) {
-    const state = dripState[stock.ticker];
-    if (!state?.enabled) continue;
-
-    const periods = getPendingPayments(stock.payFrequency, state.lastDripDate);
-    if (periods <= 0) continue;
-
-    const purchase = calcDripPurchase(stock, periods);
-    if (!purchase) continue;
-
-    pending.push({
-      ticker: stock.ticker,
-      currency: stock.currency,
-      ...purchase,
-    });
-  }
-
-  return pending;
+export function calcManualDripPurchase(dividendAmount, price) {
+  if (!dividendAmount || !price || price <= 0) return null;
+  return {
+    sharesPurchased: dividendAmount / price,
+    dividendAmount,
+    priceAtPurchase: price,
+  };
 }

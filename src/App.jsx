@@ -24,6 +24,7 @@ export default function App() {
     dripState,
     toggleDrip,
     applyDrip,
+    applyManualDrip,
   } = usePortfolio();
 
   const [period, setPeriod] = useState('monthly');
@@ -76,6 +77,7 @@ export default function App() {
         dripState={dripState}
         onToggleDrip={toggleDrip}
         onApplyDrip={applyDrip}
+        onManualDrip={applyManualDrip}
       />
       <DripProjection stocks={stocks} />
     </div>

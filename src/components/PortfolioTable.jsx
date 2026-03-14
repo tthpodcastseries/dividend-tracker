@@ -1,25 +1,48 @@
 import { useState, Fragment } from 'react';
 import { formatCurrency, formatPercent } from '../utils/dividendCalc';
-import { getPendingPayments } from '../utils/dripTracker';
+import { getPendingPayments, getPendingPaymentDates } from '../utils/dripTracker';
 
-export default function PortfolioTable({ stocks, period, onRemove, dripState, onToggleDrip, onApplyDrip }) {
+export default function PortfolioTable({ stocks, period, onRemove, dripState, onToggleDrip, onApplyDrip, onManualDrip }) {
   const [dripResults, setDripResults] = useState(null);
   const [expandedLog, setExpandedLog] = useState(null);
+  const [manualForm, setManualForm] = useState(null); // { ticker } when open
 
   // Sort alphabetically by ticker
   const sorted = [...stocks].sort((a, b) => a.ticker.localeCompare(b.ticker));
 
-  // Count stocks with pending DRIP
+  // Count stocks with pending DRIP (uses real payment dates)
   const pendingCount = sorted.filter(s => {
     const state = dripState[s.ticker];
     if (!state?.enabled) return false;
-    return getPendingPayments(s.payFrequency, state.lastDripDate) > 0;
+    return getPendingPayments(s, state.lastDripDate) > 0;
   }).length;
 
   const handleApplyDrip = () => {
     const results = onApplyDrip();
     if (results.length > 0) {
       setDripResults(results);
+      setTimeout(() => setDripResults(null), 8000);
+    }
+  };
+
+  const handleManualSubmit = (e, ticker, currency) => {
+    e.preventDefault();
+    const form = e.target;
+    const dividendAmount = parseFloat(form.dividend.value);
+    const price = parseFloat(form.price.value);
+    const date = form.date.value ? new Date(form.date.value).toISOString() : undefined;
+
+    if (!dividendAmount || !price) return;
+
+    const result = onManualDrip(ticker, dividendAmount, price, date);
+    if (result) {
+      setManualForm(null);
+      setDripResults([{
+        ticker,
+        sharesPurchased: result.sharesPurchased,
+        dividendAmount: result.dividendAmount,
+        priceAtPurchase: result.priceAtPurchase,
+      }]);
       setTimeout(() => setDripResults(null), 8000);
     }
   };
@@ -68,10 +91,14 @@ export default function PortfolioTable({ stocks, period, onRemove, dripState, on
             const state = dripState[stock.ticker] || { enabled: false, log: [] };
             const hasDividend = stock.dividendPerShare > 0 && stock.price > 0;
             const pending = hasDividend && state.enabled
-              ? getPendingPayments(stock.payFrequency, state.lastDripDate)
+              ? getPendingPayments(stock, state.lastDripDate)
               : 0;
+            const pendingDates = pending > 0
+              ? getPendingPaymentDates(stock, state.lastDripDate)
+              : [];
             const isLogExpanded = expandedLog === stock.ticker;
             const log = state.log || [];
+            const isManualOpen = manualForm?.ticker === stock.ticker;
 
             return (
               <Fragment key={stock.ticker}>
@@ -103,27 +130,39 @@ export default function PortfolioTable({ stocks, period, onRemove, dripState, on
                   <td className="currency-badge">{stock.currency}</td>
                   <td className="center drip-toggle-cell">
                     {hasDividend ? (
-                      <button
-                        className={`drip-toggle ${state.enabled ? 'drip-on' : 'drip-off'}`}
-                        onClick={() => onToggleDrip(stock.ticker)}
-                        title={state.enabled ? 'DRIP enabled — click to disable' : 'Enable DRIP'}
-                      >
-                        {state.enabled ? 'ON' : 'OFF'}
-                      </button>
+                      <>
+                        <button
+                          className={`drip-toggle ${state.enabled ? 'drip-on' : 'drip-off'}`}
+                          onClick={() => onToggleDrip(stock.ticker)}
+                          title={state.enabled ? 'DRIP enabled — click to disable' : 'Enable DRIP'}
+                        >
+                          {state.enabled ? 'ON' : 'OFF'}
+                        </button>
+                        {state.enabled && pending > 0 && (
+                          <span
+                            className="drip-pending-dot"
+                            title={`${pending} payment(s) pending: ${pendingDates.map(d => d.toLocaleDateString('en-CA')).join(', ')}`}
+                          ></span>
+                        )}
+                        {log.length > 0 && (
+                          <button
+                            className="drip-log-toggle"
+                            onClick={() => setExpandedLog(isLogExpanded ? null : stock.ticker)}
+                            title="View DRIP history"
+                          >
+                            {isLogExpanded ? '▼' : '▶'} {log.length}
+                          </button>
+                        )}
+                        <button
+                          className="drip-manual-btn"
+                          onClick={() => setManualForm(isManualOpen ? null : { ticker: stock.ticker })}
+                          title="Add manual DRIP entry"
+                        >
+                          +
+                        </button>
+                      </>
                     ) : (
                       <span className="drip-na">—</span>
-                    )}
-                    {state.enabled && pending > 0 && (
-                      <span className="drip-pending-dot" title={`${pending} payment(s) pending`}></span>
-                    )}
-                    {log.length > 0 && (
-                      <button
-                        className="drip-log-toggle"
-                        onClick={() => setExpandedLog(isLogExpanded ? null : stock.ticker)}
-                        title="View DRIP history"
-                      >
-                        {isLogExpanded ? '▼' : '▶'} {log.length}
-                      </button>
                     )}
                   </td>
                   <td>
@@ -132,6 +171,36 @@ export default function PortfolioTable({ stocks, period, onRemove, dripState, on
                     </button>
                   </td>
                 </tr>
+
+                {/* Manual DRIP entry form */}
+                {isManualOpen && (
+                  <tr className="drip-log-row">
+                    <td colSpan={11}>
+                      <form
+                        className="manual-drip-form"
+                        onSubmit={(e) => handleManualSubmit(e, stock.ticker, stock.currency)}
+                      >
+                        <span className="manual-drip-label">Manual DRIP for {stock.ticker}:</span>
+                        <label>
+                          <span>Date</span>
+                          <input type="date" name="date" defaultValue={new Date().toISOString().split('T')[0]} />
+                        </label>
+                        <label>
+                          <span>Dividend ({stock.currency})</span>
+                          <input type="number" name="dividend" step="0.01" min="0.01" required placeholder="0.00" />
+                        </label>
+                        <label>
+                          <span>Price ({stock.currency})</span>
+                          <input type="number" name="price" step="0.01" min="0.01" required defaultValue={stock.price} />
+                        </label>
+                        <button type="submit" className="manual-drip-submit">Add DRIP</button>
+                        <button type="button" className="manual-drip-cancel" onClick={() => setManualForm(null)}>Cancel</button>
+                      </form>
+                    </td>
+                  </tr>
+                )}
+
+                {/* DRIP transaction log */}
                 {isLogExpanded && log.length > 0 && (
                   <tr className="drip-log-row">
                     <td colSpan={11}>
@@ -145,6 +214,7 @@ export default function PortfolioTable({ stocks, period, onRemove, dripState, on
                               <th className="right">Shares Purchased</th>
                               <th className="right">Shares Before</th>
                               <th className="right">Shares After</th>
+                              <th>Type</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -165,6 +235,11 @@ export default function PortfolioTable({ stocks, period, onRemove, dripState, on
                                 </td>
                                 <td className="right">
                                   {entry.sharesAfter.toFixed(4)}
+                                </td>
+                                <td>
+                                  <span className={`drip-type-badge ${entry.manual ? 'drip-type-manual' : 'drip-type-auto'}`}>
+                                    {entry.manual ? 'Manual' : 'Auto'}
+                                  </span>
                                 </td>
                               </tr>
                             ))}

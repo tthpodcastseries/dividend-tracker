@@ -654,6 +654,128 @@
   font-weight: 600;
 }
 
+/* ===== Manual DRIP form ===== */
+.drip-manual-btn {
+  background: none;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 700;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.drip-manual-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: rgba(129, 140, 248, 0.1);
+}
+
+.manual-drip-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 12px 16px;
+  border-left: 3px solid var(--accent);
+  flex-wrap: wrap;
+}
+
+.manual-drip-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-bright);
+  white-space: nowrap;
+  align-self: center;
+}
+
+.manual-drip-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.manual-drip-form label span {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+
+.manual-drip-form input {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-bright);
+  padding: 6px 10px;
+  font-size: 13px;
+  width: 120px;
+}
+
+.manual-drip-form input:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.manual-drip-submit {
+  background: linear-gradient(135deg, #4ade80, #22c55e);
+  color: #0a0f1a;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.manual-drip-submit:hover {
+  box-shadow: 0 2px 8px rgba(74, 222, 128, 0.3);
+}
+
+.manual-drip-cancel {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.manual-drip-cancel:hover {
+  border-color: var(--text-dim);
+  color: var(--text);
+}
+
+/* ===== DRIP type badges ===== */
+.drip-type-badge {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.drip-type-auto {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+}
+
+.drip-type-manual {
+  background: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
+}
+
 /* ===== Modal ===== */
 .modal-overlay {
   position: fixed;

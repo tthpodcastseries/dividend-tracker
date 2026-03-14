@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { defaultPortfolio, getApiTicker, nonDividendTickers } from '../utils/defaultPortfolio';
 import { fetchDividendData } from '../utils/api';
 import { calcDividends } from '../utils/dividendCalc';
-import { loadDripState, saveDripState, getPendingPayments, calcDripPurchase } from '../utils/dripTracker';
+import { loadDripState, saveDripState, getPendingPayments, calcDripPurchase, calcManualDripPurchase } from '../utils/dripTracker';
 
 const PORTFOLIO_KEY = 'dividend_tracker_portfolio';
 const API_KEY_KEY = 'dividend_tracker_api_key';
@@ -26,11 +26,16 @@ export function usePortfolio() {
       // Merge saved data with defaults to pick up any new fields (e.g. price, payFrequency)
       const defaultMap = {};
       for (const d of defaultPortfolio) defaultMap[d.ticker] = d;
-      return saved.map(s => ({
-        ...s,
-        price: s.price || defaultMap[s.ticker]?.price || 0,
-        payFrequency: s.payFrequency || defaultMap[s.ticker]?.payFrequency || 'quarterly',
-      }));
+      return saved.map(s => {
+        const def = defaultMap[s.ticker] || {};
+        return {
+          ...s,
+          price: s.price || def.price || 0,
+          payFrequency: s.payFrequency || def.payFrequency || 'quarterly',
+          payMonths: s.payMonths || def.payMonths || [],
+          payDay: s.payDay || def.payDay || 1,
+        };
+      });
     }
     return defaultPortfolio.map(s => ({
       ...s,
@@ -169,13 +174,12 @@ export function usePortfolio() {
       const state = newDripState[stock.ticker];
       if (!state?.enabled) return stock;
 
-      const periods = getPendingPayments(stock.payFrequency, state.lastDripDate);
+      const periods = getPendingPayments(stock, state.lastDripDate);
       if (periods <= 0) return stock;
 
       const purchase = calcDripPurchase(stock, periods);
       if (!purchase) return stock;
 
-      // Record the DRIP transaction
       const logEntry = {
         date: now,
         dividendAmount: purchase.dividendAmount,
@@ -194,7 +198,6 @@ export function usePortfolio() {
 
       results.push({ ticker: stock.ticker, ...logEntry });
 
-      // Update shares and recalculate dividends
       const newShares = stock.shares + purchase.sharesPurchased;
       return {
         ...stock,
@@ -206,6 +209,49 @@ export function usePortfolio() {
     setDripState(newDripState);
     return results;
   }, [dripState, stocks]);
+
+  const applyManualDrip = useCallback((ticker, dividendAmount, price, date) => {
+    const purchase = calcManualDripPurchase(dividendAmount, price);
+    if (!purchase) return null;
+
+    const now = date || new Date().toISOString();
+
+    setStocks(prev => prev.map(stock => {
+      if (stock.ticker !== ticker) return stock;
+      const newShares = stock.shares + purchase.sharesPurchased;
+      return {
+        ...stock,
+        shares: newShares,
+        dividends: calcDividends(stock.dividendPerShare, newShares),
+      };
+    }));
+
+    setDripState(prev => {
+      const state = prev[ticker] || { enabled: true, log: [], lastDripDate: null };
+      const stockData = stocks.find(s => s.ticker === ticker);
+      const logEntry = {
+        date: now,
+        dividendAmount: purchase.dividendAmount,
+        sharesPurchased: purchase.sharesPurchased,
+        priceAtPurchase: purchase.priceAtPurchase,
+        periods: 0, // manual
+        sharesBefore: stockData?.shares || 0,
+        sharesAfter: (stockData?.shares || 0) + purchase.sharesPurchased,
+        manual: true,
+      };
+      return {
+        ...prev,
+        [ticker]: {
+          ...state,
+          enabled: true,
+          lastDripDate: now,
+          log: [...(state.log || []), logEntry],
+        },
+      };
+    });
+
+    return purchase;
+  }, [stocks]);
 
   // Totals by period
   const totals = stocks.reduce(
@@ -235,5 +281,6 @@ export function usePortfolio() {
     dripState,
     toggleDrip,
     applyDrip,
+    applyManualDrip,
   };
 }
