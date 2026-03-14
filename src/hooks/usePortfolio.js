@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { defaultPortfolio, getApiTicker, nonDividendTickers } from '../utils/defaultPortfolio';
 import { fetchDividendData } from '../utils/api';
 import { calcDividends } from '../utils/dividendCalc';
+import { loadDripState, saveDripState, getPendingPayments, calcDripPurchase } from '../utils/dripTracker';
 
 const PORTFOLIO_KEY = 'dividend_tracker_portfolio';
 const API_KEY_KEY = 'dividend_tracker_api_key';
@@ -22,12 +23,13 @@ export function usePortfolio() {
   const [stocks, setStocks] = useState(() => {
     const saved = loadPortfolio();
     if (saved) {
-      // Merge saved data with defaults to pick up any new fields (e.g. price)
+      // Merge saved data with defaults to pick up any new fields (e.g. price, payFrequency)
       const defaultMap = {};
       for (const d of defaultPortfolio) defaultMap[d.ticker] = d;
       return saved.map(s => ({
         ...s,
         price: s.price || defaultMap[s.ticker]?.price || 0,
+        payFrequency: s.payFrequency || defaultMap[s.ticker]?.payFrequency || 'quarterly',
       }));
     }
     return defaultPortfolio.map(s => ({
@@ -39,6 +41,8 @@ export function usePortfolio() {
       error: null,
     }));
   });
+
+  const [dripState, setDripState] = useState(() => loadDripState());
 
   const [apiKey, setApiKeyState] = useState(() => localStorage.getItem(API_KEY_KEY) || '');
   const [fetching, setFetching] = useState(false);
@@ -144,6 +148,65 @@ export function usePortfolio() {
     }));
   }, []);
 
+  // Persist DRIP state
+  useEffect(() => {
+    saveDripState(dripState);
+  }, [dripState]);
+
+  const toggleDrip = useCallback((ticker) => {
+    setDripState(prev => {
+      const current = prev[ticker] || { enabled: false, log: [], lastDripDate: null };
+      return { ...prev, [ticker]: { ...current, enabled: !current.enabled } };
+    });
+  }, []);
+
+  const applyDrip = useCallback(() => {
+    const now = new Date().toISOString();
+    const newDripState = { ...dripState };
+    const results = [];
+
+    setStocks(prev => prev.map(stock => {
+      const state = newDripState[stock.ticker];
+      if (!state?.enabled) return stock;
+
+      const periods = getPendingPayments(stock.payFrequency, state.lastDripDate);
+      if (periods <= 0) return stock;
+
+      const purchase = calcDripPurchase(stock, periods);
+      if (!purchase) return stock;
+
+      // Record the DRIP transaction
+      const logEntry = {
+        date: now,
+        dividendAmount: purchase.dividendAmount,
+        sharesPurchased: purchase.sharesPurchased,
+        priceAtPurchase: purchase.priceAtPurchase,
+        periods: purchase.periods,
+        sharesBefore: stock.shares,
+        sharesAfter: stock.shares + purchase.sharesPurchased,
+      };
+
+      newDripState[stock.ticker] = {
+        ...state,
+        lastDripDate: now,
+        log: [...(state.log || []), logEntry],
+      };
+
+      results.push({ ticker: stock.ticker, ...logEntry });
+
+      // Update shares and recalculate dividends
+      const newShares = stock.shares + purchase.sharesPurchased;
+      return {
+        ...stock,
+        shares: newShares,
+        dividends: calcDividends(stock.dividendPerShare, newShares),
+      };
+    }));
+
+    setDripState(newDripState);
+    return results;
+  }, [dripState, stocks]);
+
   // Totals by period
   const totals = stocks.reduce(
     (acc, s) => {
@@ -169,5 +232,8 @@ export function usePortfolio() {
     removeStock,
     updateShares,
     totals,
+    dripState,
+    toggleDrip,
+    applyDrip,
   };
 }

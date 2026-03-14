@@ -474,6 +474,186 @@
   background: rgba(248, 113, 113, 0.1);
 }
 
+/* ===== Section heading row ===== */
+.section-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+/* ===== Apply DRIP button ===== */
+.apply-drip-btn {
+  background: linear-gradient(135deg, #4ade80, #22c55e);
+  color: #0a0f1a;
+  border: none;
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.3px;
+}
+
+.apply-drip-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(74, 222, 128, 0.3);
+}
+
+/* ===== DRIP results banner ===== */
+.drip-results-banner {
+  background: linear-gradient(135deg, rgba(74, 222, 128, 0.12), rgba(34, 197, 94, 0.08));
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+  animation: fadeIn 0.3s ease;
+  font-size: 13px;
+}
+
+.drip-results-banner strong {
+  color: var(--green);
+  margin-right: 4px;
+}
+
+.drip-result-item {
+  color: var(--text);
+  background: var(--bg-card);
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ===== DRIP toggle ===== */
+.portfolio-table .center {
+  text-align: center;
+}
+
+.drip-toggle-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  justify-content: center;
+  position: relative;
+}
+
+.drip-toggle {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.5px;
+}
+
+.drip-on {
+  background: rgba(74, 222, 128, 0.15);
+  color: var(--green);
+  border-color: rgba(74, 222, 128, 0.3);
+}
+
+.drip-on:hover {
+  background: rgba(74, 222, 128, 0.25);
+}
+
+.drip-off {
+  background: var(--bg-hover);
+  color: var(--text-dim);
+  border-color: var(--border-subtle);
+}
+
+.drip-off:hover {
+  border-color: var(--text-dim);
+}
+
+.drip-na {
+  color: var(--text-dim);
+  opacity: 0.4;
+}
+
+.drip-pending-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fbbf24;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.drip-log-toggle {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 10px;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+
+.drip-log-toggle:hover {
+  color: var(--accent);
+}
+
+/* ===== DRIP log row ===== */
+.drip-log-row td {
+  padding: 0 !important;
+  background: var(--bg-card-alt) !important;
+}
+
+.drip-log-container {
+  padding: 8px 16px 12px;
+  border-left: 3px solid var(--green);
+}
+
+.drip-log-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.drip-log-table th {
+  padding: 6px 10px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-dim);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.drip-log-table td {
+  padding: 5px 10px;
+  color: var(--text);
+  border-bottom: 1px solid rgba(51, 65, 85, 0.3);
+}
+
+.drip-log-table .right {
+  text-align: right;
+}
+
+.drip-log-table .green-text {
+  color: var(--green);
+  font-weight: 600;
+}
+
 /* ===== Modal ===== */
 .modal-overlay {
   position: fixed;

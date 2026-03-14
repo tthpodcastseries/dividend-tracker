@@ -21,6 +21,9 @@ export default function App() {
     addStock,
     removeStock,
     totals,
+    dripState,
+    toggleDrip,
+    applyDrip,
   } = usePortfolio();
 
   const [period, setPeriod] = useState('monthly');
@@ -66,7 +69,14 @@ export default function App() {
 
       <DividendSummary totals={totals} activePeriod={period} />
       <DividendChart stocks={stocks} period={period} />
-      <PortfolioTable stocks={stocks} period={period} onRemove={removeStock} />
+      <PortfolioTable
+        stocks={stocks}
+        period={period}
+        onRemove={removeStock}
+        dripState={dripState}
+        onToggleDrip={toggleDrip}
+        onApplyDrip={applyDrip}
+      />
       <DripProjection stocks={stocks} />
     </div>
   );
