@@ -31,6 +31,7 @@ export function usePortfolio() {
         return {
           ...s,
           price: s.price || def.price || 0,
+          buyPrice: s.buyPrice || def.buyPrice || 0,
           payFrequency: s.payFrequency || def.payFrequency || 'quarterly',
           payMonths: s.payMonths || def.payMonths || [],
           payDay: s.payDay || def.payDay || 1,

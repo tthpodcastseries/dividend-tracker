@@ -1,6 +1,33 @@
 import { useState, Fragment } from 'react';
 import { formatCurrency, formatPercent } from '../utils/dividendCalc';
 import { getPendingPayments, getPendingPaymentDates } from '../utils/dripTracker';
+import { BUY_DATE } from '../utils/defaultPortfolio';
+
+/**
+ * Calculate weighted average cost basis factoring in original buy and DRIP purchases.
+ * Returns { avgCost, totalCost, totalShares } or null if no buyPrice.
+ */
+function calcAvgCost(stock, dripLog) {
+  if (!stock.buyPrice) return null;
+
+  // Original purchase: all shares minus any DRIP-added shares
+  const dripShares = (dripLog || []).reduce((sum, entry) => sum + entry.sharesPurchased, 0);
+  const originalShares = stock.shares - dripShares;
+  let totalCost = originalShares * stock.buyPrice;
+  let totalShares = originalShares;
+
+  // Add each DRIP purchase at its actual price
+  for (const entry of (dripLog || [])) {
+    totalCost += entry.sharesPurchased * entry.priceAtPurchase;
+    totalShares += entry.sharesPurchased;
+  }
+
+  return {
+    avgCost: totalShares > 0 ? totalCost / totalShares : 0,
+    totalCost,
+    totalShares,
+  };
+}
 
 export default function PortfolioTable({ stocks, period, onRemove, dripState, onToggleDrip, onApplyDrip, onManualDrip }) {
   const [dripResults, setDripResults] = useState(null);
@@ -81,6 +108,8 @@ export default function PortfolioTable({ stocks, period, onRemove, dripState, on
             <th className="right">Yield</th>
             <th className="right">{period.charAt(0).toUpperCase() + period.slice(1)} Income</th>
             <th className="right">Annual Income</th>
+            <th className="right">Avg Cost</th>
+            <th className="right">Unrealized P&L</th>
             <th>Currency</th>
             <th className="center">DRIP</th>
             <th></th>
@@ -99,6 +128,14 @@ export default function PortfolioTable({ stocks, period, onRemove, dripState, on
             const isLogExpanded = expandedLog === stock.ticker;
             const log = state.log || [];
             const isManualOpen = manualForm?.ticker === stock.ticker;
+
+            const costBasis = calcAvgCost(stock, log);
+            const unrealizedPL = costBasis && stock.price
+              ? (stock.price - costBasis.avgCost) * stock.shares
+              : null;
+            const unrealizedPct = costBasis && costBasis.avgCost > 0
+              ? (stock.price - costBasis.avgCost) / costBasis.avgCost
+              : null;
 
             return (
               <Fragment key={stock.ticker}>
@@ -126,6 +163,21 @@ export default function PortfolioTable({ stocks, period, onRemove, dripState, on
                     {stock.loading
                       ? '...'
                       : formatCurrency(stock.dividends?.annual || 0, stock.currency)}
+                  </td>
+                  <td className="right">
+                    {costBasis
+                      ? formatCurrency(costBasis.avgCost, stock.currency)
+                      : '—'}
+                  </td>
+                  <td className={`right pl-cell ${unrealizedPL !== null ? (unrealizedPL >= 0 ? 'pl-positive' : 'pl-negative') : ''}`}>
+                    {unrealizedPL !== null ? (
+                      <span title={`Buy: ${formatCurrency(stock.buyPrice, stock.currency)} on ${BUY_DATE}`}>
+                        {unrealizedPL >= 0 ? '+' : ''}{formatCurrency(unrealizedPL, stock.currency)}
+                        <span className="pl-pct">
+                          {unrealizedPct !== null ? ` (${unrealizedPct >= 0 ? '+' : ''}${(unrealizedPct * 100).toFixed(1)}%)` : ''}
+                        </span>
+                      </span>
+                    ) : '—'}
                   </td>
                   <td className="currency-badge">{stock.currency}</td>
                   <td className="center drip-toggle-cell">
@@ -175,7 +227,7 @@ export default function PortfolioTable({ stocks, period, onRemove, dripState, on
                 {/* Manual DRIP entry form */}
                 {isManualOpen && (
                   <tr className="drip-log-row">
-                    <td colSpan={11}>
+                    <td colSpan={13}>
                       <form
                         className="manual-drip-form"
                         onSubmit={(e) => handleManualSubmit(e, stock.ticker, stock.currency)}
@@ -203,7 +255,7 @@ export default function PortfolioTable({ stocks, period, onRemove, dripState, on
                 {/* DRIP transaction log */}
                 {isLogExpanded && log.length > 0 && (
                   <tr className="drip-log-row">
-                    <td colSpan={11}>
+                    <td colSpan={13}>
                       <div className="drip-log-container">
                         <table className="drip-log-table">
                           <thead>
