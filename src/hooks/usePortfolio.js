@@ -7,6 +7,8 @@ import { loadDripState, saveDripState, getPendingPayments, calcDripPurchase, cal
 const PORTFOLIO_KEY = 'dividend_tracker_portfolio';
 const API_KEY_KEY = 'dividend_tracker_api_key';
 const SALES_KEY = 'dividend_tracker_sales';
+const DATA_VERSION_KEY = 'dividend_tracker_data_version';
+const CURRENT_DATA_VERSION = 2; // Bump this when defaultPortfolio prices/shares change
 
 function loadPortfolio() {
   try {
@@ -23,22 +25,30 @@ function savePortfolio(portfolio) {
 export function usePortfolio() {
   const [stocks, setStocks] = useState(() => {
     const saved = loadPortfolio();
+    const savedVersion = parseInt(localStorage.getItem(DATA_VERSION_KEY) || '0', 10);
+    const needsSync = savedVersion < CURRENT_DATA_VERSION;
+
     if (saved) {
       // Merge saved data with defaults to pick up any new fields (e.g. price, payFrequency)
       const defaultMap = {};
       for (const d of defaultPortfolio) defaultMap[d.ticker] = d;
-      return saved.map(s => {
+      const merged = saved.map(s => {
         const def = defaultMap[s.ticker] || {};
         return {
           ...s,
-          price: s.price || def.price || 0,
+          // On version bump, sync prices and shares from defaults
+          price: needsSync && def.price ? def.price : (s.price || def.price || 0),
+          shares: needsSync && def.shares ? def.shares : s.shares,
           buyPrice: s.buyPrice || def.buyPrice || 0,
           payFrequency: s.payFrequency || def.payFrequency || 'quarterly',
           payMonths: s.payMonths || def.payMonths || [],
           payDay: s.payDay || def.payDay || 1,
         };
       });
+      if (needsSync) localStorage.setItem(DATA_VERSION_KEY, String(CURRENT_DATA_VERSION));
+      return merged;
     }
+    localStorage.setItem(DATA_VERSION_KEY, String(CURRENT_DATA_VERSION));
     return defaultPortfolio.map(s => ({
       ...s,
       dividendPerShare: s.dividendPerShare || 0,
