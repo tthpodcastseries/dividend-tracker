@@ -9,7 +9,29 @@ const COLORS = [
   '#60a5fa', '#818cf8', '#a5b4fc', '#c4b5fd',
 ];
 
-export default function DividendChart({ stocks, period }) {
+function ClickableTick({ x, y, payload, onTickerClick }) {
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text
+        x={0}
+        y={0}
+        dy={4}
+        textAnchor="end"
+        fill="#94a3b8"
+        fontSize={11}
+        transform="rotate(-45)"
+        style={{ cursor: 'pointer' }}
+        onClick={() => onTickerClick(payload.value)}
+        onMouseOver={(e) => { e.target.style.fill = '#818cf8'; }}
+        onMouseOut={(e) => { e.target.style.fill = '#94a3b8'; }}
+      >
+        {payload.value}
+      </text>
+    </g>
+  );
+}
+
+export default function DividendChart({ stocks, period, onTickerClick }) {
   const data = stocks
     .filter(s => (s.dividends?.[period] || 0) > 0)
     .sort((a, b) => (b.dividends?.[period] || 0) - (a.dividends?.[period] || 0))
@@ -23,6 +45,10 @@ export default function DividendChart({ stocks, period }) {
     return <div className="chart-empty">No dividend data to display</div>;
   }
 
+  const handleBarClick = (entry) => {
+    if (entry?.ticker && onTickerClick) onTickerClick(entry.ticker);
+  };
+
   return (
     <div className="chart-container">
       <h3 className="chart-title">
@@ -32,9 +58,7 @@ export default function DividendChart({ stocks, period }) {
         <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 40 }}>
           <XAxis
             dataKey="ticker"
-            tick={{ fill: '#94a3b8', fontSize: 11 }}
-            angle={-45}
-            textAnchor="end"
+            tick={<ClickableTick onTickerClick={onTickerClick} />}
             height={60}
           />
           <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} />
@@ -45,7 +69,7 @@ export default function DividendChart({ stocks, period }) {
               [formatCurrency(value, props.payload.currency), 'Dividend']
             }
           />
-          <Bar dataKey="amount" radius={[6, 6, 0, 0]}>
+          <Bar dataKey="amount" radius={[6, 6, 0, 0]} onClick={handleBarClick} style={{ cursor: 'pointer' }}>
             {data.map((_, index) => (
               <Cell key={index} fill={COLORS[index % COLORS.length]} />
             ))}

@@ -8,6 +8,7 @@ import DividendSummary from './components/DividendSummary';
 import PortfolioTable from './components/PortfolioTable';
 import DividendChart from './components/DividendChart';
 import DripProjection from './components/DripProjection';
+import StockChartModal from './components/StockChartModal';
 import { clearDividendCache } from './utils/api';
 import './App.css';
 
@@ -25,10 +26,19 @@ export default function App() {
     toggleDrip,
     applyDrip,
     applyManualDrip,
+    sellShares,
+    salesLog,
   } = usePortfolio();
 
   const [period, setPeriod] = useState('monthly');
   const [showApiModal, setShowApiModal] = useState(false);
+  const [chartTicker, setChartTicker] = useState(null);
+
+  const handleTickerClick = (ticker) => {
+    setChartTicker(ticker);
+  };
+
+  const chartStock = chartTicker ? stocks.find(s => s.ticker === chartTicker) : null;
 
   // Auto-fetch on launch when API key is available
   useEffect(() => {
@@ -51,6 +61,14 @@ export default function App() {
   return (
     <div className="app">
       {showApiModal && <ApiKeyInput onSave={handleSaveKey} />}
+      {chartStock && (
+        <StockChartModal
+          ticker={chartStock.ticker}
+          currency={chartStock.currency}
+          name={chartStock.fetchedName || chartStock.name}
+          onClose={() => setChartTicker(null)}
+        />
+      )}
 
       <Header totals={totals} period={period} stockCount={stocks.length} />
 
@@ -70,7 +88,7 @@ export default function App() {
       {fetching && <div className="fetching-bar">Fetching dividend data...</div>}
 
       <DividendSummary totals={totals} activePeriod={period} />
-      <DividendChart stocks={stocks} period={period} />
+      <DividendChart stocks={stocks} period={period} onTickerClick={handleTickerClick} />
       <PortfolioTable
         stocks={stocks}
         period={period}
@@ -79,6 +97,9 @@ export default function App() {
         onToggleDrip={toggleDrip}
         onApplyDrip={applyDrip}
         onManualDrip={applyManualDrip}
+        onSell={sellShares}
+        salesLog={salesLog}
+        onTickerClick={handleTickerClick}
       />
       <DripProjection stocks={stocks} />
     </div>

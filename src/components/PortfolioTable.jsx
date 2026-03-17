@@ -29,10 +29,12 @@ function calcAvgCost(stock, dripLog) {
   };
 }
 
-export default function PortfolioTable({ stocks, period, onRemove, dripState, onToggleDrip, onApplyDrip, onManualDrip }) {
+export default function PortfolioTable({ stocks, period, onRemove, dripState, onToggleDrip, onApplyDrip, onManualDrip, onSell, salesLog, onTickerClick }) {
   const [dripResults, setDripResults] = useState(null);
   const [expandedLog, setExpandedLog] = useState(null);
   const [manualForm, setManualForm] = useState(null); // { ticker } when open
+  const [sellForm, setSellForm] = useState(null); // { ticker } when open
+  const [sellResult, setSellResult] = useState(null);
 
   // Sort alphabetically by ticker
   const sorted = [...stocks].sort((a, b) => a.ticker.localeCompare(b.ticker));
@@ -74,6 +76,23 @@ export default function PortfolioTable({ stocks, period, onRemove, dripState, on
     }
   };
 
+  const handleSellSubmit = (e, ticker, currency, avgCost) => {
+    e.preventDefault();
+    const form = e.target;
+    const sharesSold = parseFloat(form.shares.value);
+    const salePrice = parseFloat(form.salePrice.value);
+    const date = form.date.value ? new Date(form.date.value).toISOString() : undefined;
+
+    if (!sharesSold || !salePrice) return;
+
+    const result = onSell(ticker, sharesSold, salePrice, avgCost, date);
+    if (result) {
+      setSellForm(null);
+      setSellResult({ ticker, ...result, currency });
+      setTimeout(() => setSellResult(null), 8000);
+    }
+  };
+
   return (
     <>
     <div className="section-heading-row">
@@ -93,6 +112,17 @@ export default function PortfolioTable({ stocks, period, onRemove, dripState, on
             {r.ticker}: +{r.sharesPurchased.toFixed(4)} shares (${r.dividendAmount.toFixed(2)} reinvested @ ${r.priceAtPurchase.toFixed(2)})
           </span>
         ))}
+      </div>
+    )}
+
+    {sellResult && (
+      <div className={`sell-results-banner ${sellResult.realizedPL >= 0 ? 'sell-gain' : 'sell-loss'}`}>
+        <strong>Sold {sellResult.ticker}!</strong>
+        <span className="sell-result-item">
+          {sellResult.sharesSold.toFixed(4)} shares @ {formatCurrency(sellResult.salePrice, sellResult.currency)}
+          {' — '}
+          Realized P&L: {sellResult.realizedPL >= 0 ? '+' : ''}{formatCurrency(sellResult.realizedPL, sellResult.currency)}
+        </span>
       </div>
     )}
 
@@ -140,7 +170,7 @@ export default function PortfolioTable({ stocks, period, onRemove, dripState, on
             return (
               <Fragment key={stock.ticker}>
                 <tr className={stock.loading ? 'loading-row' : ''}>
-                  <td className="ticker-cell">{stock.ticker}</td>
+                  <td className="ticker-cell clickable-ticker" onClick={() => onTickerClick(stock.ticker)}>{stock.ticker}</td>
                   <td className="name-cell">{stock.fetchedName || stock.name}</td>
                   <td className="right">{stock.shares.toLocaleString(undefined, { maximumFractionDigits: 4 })}</td>
                   <td className="right">
@@ -217,12 +247,47 @@ export default function PortfolioTable({ stocks, period, onRemove, dripState, on
                       <span className="drip-na">—</span>
                     )}
                   </td>
-                  <td>
+                  <td className="action-cell">
+                    <button
+                      className="sell-btn"
+                      onClick={() => setSellForm(sellForm?.ticker === stock.ticker ? null : { ticker: stock.ticker })}
+                      title="Sell shares"
+                    >
+                      Sell
+                    </button>
                     <button className="remove-btn" onClick={() => onRemove(stock.ticker)} title="Remove">
                       &times;
                     </button>
                   </td>
                 </tr>
+
+                {/* Sell shares form */}
+                {sellForm?.ticker === stock.ticker && (
+                  <tr className="drip-log-row">
+                    <td colSpan={13}>
+                      <form
+                        className="sell-form"
+                        onSubmit={(e) => handleSellSubmit(e, stock.ticker, stock.currency, costBasis?.avgCost || stock.buyPrice)}
+                      >
+                        <span className="sell-form-label">Sell {stock.ticker}:</span>
+                        <label>
+                          <span>Date</span>
+                          <input type="date" name="date" defaultValue={new Date().toISOString().split('T')[0]} />
+                        </label>
+                        <label>
+                          <span>Shares</span>
+                          <input type="number" name="shares" step="0.0001" min="0.0001" max={stock.shares} required placeholder="0" />
+                        </label>
+                        <label>
+                          <span>Sale Price ({stock.currency})</span>
+                          <input type="number" name="salePrice" step="0.01" min="0.01" required defaultValue={stock.price} />
+                        </label>
+                        <button type="submit" className="sell-submit">Sell</button>
+                        <button type="button" className="manual-drip-cancel" onClick={() => setSellForm(null)}>Cancel</button>
+                      </form>
+                    </td>
+                  </tr>
+                )}
 
                 {/* Manual DRIP entry form */}
                 {isManualOpen && (

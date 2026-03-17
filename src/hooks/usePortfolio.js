@@ -6,6 +6,7 @@ import { loadDripState, saveDripState, getPendingPayments, calcDripPurchase, cal
 
 const PORTFOLIO_KEY = 'dividend_tracker_portfolio';
 const API_KEY_KEY = 'dividend_tracker_api_key';
+const SALES_KEY = 'dividend_tracker_sales';
 
 function loadPortfolio() {
   try {
@@ -49,6 +50,15 @@ export function usePortfolio() {
   });
 
   const [dripState, setDripState] = useState(() => loadDripState());
+
+  // Sales log: { [ticker]: [{ date, sharesSold, salePrice, avgCostAtSale, realizedPL, sharesBefore, sharesAfter }] }
+  const [salesLog, setSalesLog] = useState(() => {
+    try {
+      const raw = localStorage.getItem(SALES_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch { /* ignore */ }
+    return {};
+  });
 
   const [apiKey, setApiKeyState] = useState(() => localStorage.getItem(API_KEY_KEY) || '');
   const [fetching, setFetching] = useState(false);
@@ -254,6 +264,46 @@ export function usePortfolio() {
     return purchase;
   }, [stocks]);
 
+  // Persist sales log
+  useEffect(() => {
+    localStorage.setItem(SALES_KEY, JSON.stringify(salesLog));
+  }, [salesLog]);
+
+  const sellShares = useCallback((ticker, sharesSold, salePrice, avgCost, date) => {
+    const stock = stocks.find(s => s.ticker === ticker);
+    if (!stock || sharesSold <= 0 || sharesSold > stock.shares) return null;
+
+    const realizedPL = (salePrice - avgCost) * sharesSold;
+    const logEntry = {
+      date: date || new Date().toISOString(),
+      sharesSold,
+      salePrice,
+      avgCostAtSale: avgCost,
+      realizedPL,
+      sharesBefore: stock.shares,
+      sharesAfter: stock.shares - sharesSold,
+    };
+
+    // Update share count
+    setStocks(prev => prev.map(s => {
+      if (s.ticker !== ticker) return s;
+      const newShares = s.shares - sharesSold;
+      return {
+        ...s,
+        shares: newShares,
+        dividends: calcDividends(s.dividendPerShare, newShares),
+      };
+    }));
+
+    // Add to sales log
+    setSalesLog(prev => ({
+      ...prev,
+      [ticker]: [...(prev[ticker] || []), logEntry],
+    }));
+
+    return logEntry;
+  }, [stocks]);
+
   // Totals by period
   const totals = stocks.reduce(
     (acc, s) => {
@@ -283,5 +333,7 @@ export function usePortfolio() {
     toggleDrip,
     applyDrip,
     applyManualDrip,
+    sellShares,
+    salesLog,
   };
 }
