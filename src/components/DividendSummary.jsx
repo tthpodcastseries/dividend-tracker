@@ -17,14 +17,14 @@ export default function DividendSummary({ totals, activePeriod }) {
 
         return (
           <div key={period} className={`summary-card${isActive ? ' summary-card-active' : ''}`}>
-            <h3>{getPeriodLabel(period)}</h3>
+            <h2>{getPeriodLabel(period)}</h2>
             {currencies.map(cur => (
               <div key={cur} className="summary-amount">
                 <span className="currency-tag">{cur}</span>
                 <span className="amount">{formatCurrency(totals[cur]?.[period] || 0, cur)}</span>
               </div>
             ))}
-            <div className="summary-total">
+            <div className="summary-total" title={`Approx. total at ${USD_TO_CAD} USD/CAD`}>
               <span className="currency-tag total-tag">TOTAL</span>
               <span className="amount total-amount">{formatCurrency(totalCad, 'CAD')}</span>
             </div>

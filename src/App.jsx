@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { usePortfolio } from './hooks/usePortfolio';
 import Header from './components/Header';
 import ApiKeyInput from './components/ApiKeyInput';
@@ -38,6 +38,8 @@ export default function App() {
     setChartTicker(ticker);
   };
 
+  const handleCloseChart = useCallback(() => setChartTicker(null), []);
+  const handleCloseApiModal = useCallback(() => setShowApiModal(false), []);
   const chartStock = chartTicker ? stocks.find(s => s.ticker === chartTicker) : null;
 
   // Auto-fetch on launch when API key is available
@@ -53,6 +55,7 @@ export default function App() {
   };
 
   const handleRefresh = () => {
+    if (!window.confirm('This will clear all cached data and reload. Continue?')) return;
     clearDividendCache();
     localStorage.removeItem('dividend_tracker_portfolio');
     window.location.reload();
@@ -60,19 +63,20 @@ export default function App() {
 
   return (
     <div className="app">
-      {showApiModal && <ApiKeyInput onSave={handleSaveKey} />}
+      {showApiModal && <ApiKeyInput onSave={handleSaveKey} onClose={handleCloseApiModal} />}
       {chartStock && (
         <StockChartModal
           ticker={chartStock.ticker}
           currency={chartStock.currency}
           name={chartStock.fetchedName || chartStock.name}
-          onClose={() => setChartTicker(null)}
+          onClose={handleCloseChart}
         />
       )}
 
       <Header totals={totals} period={period} stockCount={stocks.length} />
 
-      <div className="toolbar">
+      <main>
+      <nav className="toolbar" aria-label="Portfolio controls">
         <TimeToggle period={period} onChange={setPeriod} />
         <div className="toolbar-right">
           <AddStock onAdd={addStock} />
@@ -83,9 +87,9 @@ export default function App() {
             API Key
           </button>
         </div>
-      </div>
+      </nav>
 
-      {fetching && <div className="fetching-bar">Fetching dividend data...</div>}
+      {fetching && <div className="fetching-bar" role="status" aria-live="polite">Fetching dividend data...</div>}
 
       <DividendSummary totals={totals} activePeriod={period} />
       <DividendChart stocks={stocks} period={period} onTickerClick={handleTickerClick} />
@@ -102,6 +106,7 @@ export default function App() {
         onTickerClick={handleTickerClick}
       />
       <DripProjection stocks={stocks} />
+      </main>
     </div>
   );
 }

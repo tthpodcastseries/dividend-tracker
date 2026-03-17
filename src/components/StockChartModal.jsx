@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useFocusTrap } from '../utils/focusTrap';
 
 // Map tickers to TradingView symbol format
 function getTradingViewSymbol(ticker, currency) {
@@ -10,6 +11,7 @@ function getTradingViewSymbol(ticker, currency) {
 
 export default function StockChartModal({ ticker, currency, name, onClose }) {
   const containerRef = useRef(null);
+  const trapRef = useFocusTrap(true);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -43,20 +45,22 @@ export default function StockChartModal({ ticker, currency, name, onClose }) {
     });
 
     containerRef.current.appendChild(script);
+  }, [ticker, currency]);
 
+  useEffect(() => {
     const handleEsc = (e) => {
       if (e.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
-  }, [ticker, currency, onClose]);
+  }, [onClose]);
 
   return (
     <div className="chart-modal-overlay" onClick={onClose}>
-      <div className="chart-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="chart-modal" ref={trapRef} role="dialog" aria-modal="true" aria-labelledby="chart-modal-title" onClick={(e) => e.stopPropagation()}>
         <div className="chart-modal-header">
-          <h3>{ticker} — {name}</h3>
-          <button className="chart-modal-close" onClick={onClose}>&times;</button>
+          <h3 id="chart-modal-title">{ticker} - {name}</h3>
+          <button className="chart-modal-close" onClick={onClose} aria-label="Close chart">&times;</button>
         </div>
         <div className="chart-modal-body" ref={containerRef}>
           <div className="chart-loading">Loading chart...</div>

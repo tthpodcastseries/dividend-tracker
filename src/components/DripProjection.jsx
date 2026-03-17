@@ -34,10 +34,21 @@ export default function DripProjection({ stocks }) {
     .filter(s => s.dividendPerShare > 0 && s.price > 0)
     .sort((a, b) => (b.dividendPerShare * b.shares) - (a.dividendPerShare * a.shares));
 
+  if (dripStocks.length === 0) {
+    return (
+      <div className="drip-section">
+        <div className="drip-header">
+          <h2><span aria-hidden="true">📈</span> DRIP Projection</h2>
+          <p className="drip-subtitle">No dividend-paying stocks in portfolio. Add stocks with dividends to see DRIP projections.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="drip-section">
       <div className="drip-header">
-        <h2>📈 DRIP Projection</h2>
+        <h2><span aria-hidden="true">📈</span> DRIP Projection</h2>
         <p className="drip-subtitle">
           Dividend Reinvestment — see how reinvesting dividends compounds your returns
         </p>
@@ -99,8 +110,8 @@ export default function DripProjection({ stocks }) {
       </div>
 
       {/* Chart */}
-      <div className="chart-container">
-        <h3 className="chart-title">Annual Dividend Income — DRIP vs No DRIP</h3>
+      <div className="chart-container" role="img" aria-label={`DRIP projection chart showing dividend income over ${years} years with and without reinvestment`}>
+        <h3 className="chart-title">Annual Dividend Income - DRIP vs No DRIP</h3>
         <ResponsiveContainer width="100%" height={350}>
           <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 20, bottom: 10 }}>
             <XAxis dataKey="year" tick={{ fill: '#94a3b8', fontSize: 12 }} />
@@ -175,9 +186,16 @@ export default function DripProjection({ stocks }) {
 
                 return (
                   <Fragment key={stock.ticker}>
-                    <tr className="drip-row" onClick={() => setExpandedTicker(isExpanded ? null : stock.ticker)}>
+                    <tr
+                      className="drip-row"
+                      onClick={() => setExpandedTicker(isExpanded ? null : stock.ticker)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpandedTicker(isExpanded ? null : stock.ticker); } }}
+                      tabIndex={0}
+                      role="button"
+                      aria-expanded={isExpanded}
+                    >
                       <td className="ticker-cell">
-                        <span className="expand-icon">{isExpanded ? '▼' : '▶'}</span>
+                        <span className="expand-icon" aria-hidden="true">{isExpanded ? '▼' : '▶'}</span>
                         {stock.ticker}
                       </td>
                       <td className="right">{stock.shares.toLocaleString(undefined, { maximumFractionDigits: 4 })}</td>

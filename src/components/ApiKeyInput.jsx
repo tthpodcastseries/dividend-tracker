@@ -1,7 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useFocusTrap } from '../utils/focusTrap';
 
-export default function ApiKeyInput({ onSave }) {
+export default function ApiKeyInput({ onSave, onClose }) {
   const [key, setKey] = useState('');
+  const trapRef = useFocusTrap(true);
+
+  useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === 'Escape' && onClose) onClose();
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [onClose]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -9,9 +19,9 @@ export default function ApiKeyInput({ onSave }) {
   };
 
   return (
-    <div className="modal-overlay">
-      <div className="modal">
-        <h2>Alpha Vantage API Key</h2>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" ref={trapRef} role="dialog" aria-modal="true" aria-labelledby="api-key-title" onClick={(e) => e.stopPropagation()}>
+        <h2 id="api-key-title">Alpha Vantage API Key</h2>
         <p>
           This app uses Alpha Vantage to fetch real dividend data.
           Get a free API key at{' '}
@@ -26,6 +36,7 @@ export default function ApiKeyInput({ onSave }) {
             value={key}
             onChange={(e) => setKey(e.target.value)}
             placeholder="Enter your API key..."
+            aria-label="API key"
             autoFocus
           />
           <button type="submit" disabled={!key.trim()}>Save & Load Data</button>

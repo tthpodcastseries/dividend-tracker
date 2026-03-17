@@ -35,6 +35,7 @@ export default function PortfolioTable({ stocks, period, onRemove, dripState, on
   const [manualForm, setManualForm] = useState(null); // { ticker } when open
   const [sellForm, setSellForm] = useState(null); // { ticker } when open
   const [sellResult, setSellResult] = useState(null);
+  const [formError, setFormError] = useState(null);
 
   // Sort alphabetically by ticker
   const sorted = [...stocks].sort((a, b) => a.ticker.localeCompare(b.ticker));
@@ -61,7 +62,11 @@ export default function PortfolioTable({ stocks, period, onRemove, dripState, on
     const price = parseFloat(form.price.value);
     const date = form.date.value ? new Date(form.date.value).toISOString() : undefined;
 
-    if (!dividendAmount || !price) return;
+    if (!dividendAmount || !price) {
+      setFormError('Please enter both dividend amount and price.');
+      return;
+    }
+    setFormError(null);
 
     const result = onManualDrip(ticker, dividendAmount, price, date);
     if (result) {
@@ -83,7 +88,11 @@ export default function PortfolioTable({ stocks, period, onRemove, dripState, on
     const salePrice = parseFloat(form.salePrice.value);
     const date = form.date.value ? new Date(form.date.value).toISOString() : undefined;
 
-    if (!sharesSold || !salePrice) return;
+    if (!sharesSold || !salePrice) {
+      setFormError('Please enter both shares and sale price.');
+      return;
+    }
+    setFormError(null);
 
     const result = onSell(ticker, sharesSold, salePrice, avgCost, date);
     if (result) {
@@ -96,7 +105,7 @@ export default function PortfolioTable({ stocks, period, onRemove, dripState, on
   return (
     <>
     <div className="section-heading-row">
-      <h3 className="section-heading">Portfolio Holdings</h3>
+      <h2 className="section-heading">Portfolio Holdings</h2>
       {pendingCount > 0 && (
         <button className="apply-drip-btn" onClick={handleApplyDrip}>
           Apply DRIP ({pendingCount} pending)
@@ -105,44 +114,47 @@ export default function PortfolioTable({ stocks, period, onRemove, dripState, on
     </div>
 
     {dripResults && dripResults.length > 0 && (
-      <div className="drip-results-banner">
+      <div className="drip-results-banner" role="status">
         <strong>DRIP Applied!</strong>
         {dripResults.map(r => (
           <span key={r.ticker} className="drip-result-item">
             {r.ticker}: +{r.sharesPurchased.toFixed(4)} shares (${r.dividendAmount.toFixed(2)} reinvested @ ${r.priceAtPurchase.toFixed(2)})
           </span>
         ))}
+        <button className="banner-dismiss" onClick={() => setDripResults(null)} aria-label="Dismiss">&times;</button>
       </div>
     )}
 
     {sellResult && (
-      <div className={`sell-results-banner ${sellResult.realizedPL >= 0 ? 'sell-gain' : 'sell-loss'}`}>
+      <div className={`sell-results-banner ${sellResult.realizedPL >= 0 ? 'sell-gain' : 'sell-loss'}`} role="status">
         <strong>Sold {sellResult.ticker}!</strong>
         <span className="sell-result-item">
           {sellResult.sharesSold.toFixed(4)} shares @ {formatCurrency(sellResult.salePrice, sellResult.currency)}
-          {' — '}
+          {' - '}
           Realized P&L: {sellResult.realizedPL >= 0 ? '+' : ''}{formatCurrency(sellResult.realizedPL, sellResult.currency)}
         </span>
+        <button className="banner-dismiss" onClick={() => setSellResult(null)} aria-label="Dismiss">&times;</button>
       </div>
     )}
 
     <div className="table-wrapper">
       <table className="portfolio-table">
+        <caption className="sr-only">Portfolio holdings with dividend and performance data</caption>
         <thead>
           <tr>
-            <th>Ticker</th>
-            <th>Company</th>
-            <th className="right">Shares</th>
-            <th className="right">Price</th>
-            <th className="right">Div/Share</th>
-            <th className="right">Yield</th>
-            <th className="right">{period.charAt(0).toUpperCase() + period.slice(1)} Income</th>
-            <th className="right">Annual Income</th>
-            <th className="right">Avg Cost</th>
-            <th className="right">Unrealized P&L</th>
-            <th>Currency</th>
-            <th className="center">DRIP</th>
-            <th></th>
+            <th scope="col">Ticker</th>
+            <th scope="col">Company</th>
+            <th scope="col" className="right">Shares</th>
+            <th scope="col" className="right">Price</th>
+            <th scope="col" className="right">Div/Share</th>
+            <th scope="col" className="right">Yield</th>
+            <th scope="col" className="right">{period.charAt(0).toUpperCase() + period.slice(1)} Income</th>
+            <th scope="col" className="right">Annual Income</th>
+            <th scope="col" className="right">Avg Cost</th>
+            <th scope="col" className="right">Unrealized P&L</th>
+            <th scope="col">Currency</th>
+            <th scope="col" className="center">DRIP</th>
+            <th scope="col"><span className="sr-only">Actions</span></th>
           </tr>
         </thead>
         <tbody>
@@ -216,13 +228,17 @@ export default function PortfolioTable({ stocks, period, onRemove, dripState, on
                         <button
                           className={`drip-toggle ${state.enabled ? 'drip-on' : 'drip-off'}`}
                           onClick={() => onToggleDrip(stock.ticker)}
-                          title={state.enabled ? 'DRIP enabled — click to disable' : 'Enable DRIP'}
+                          aria-pressed={state.enabled}
+                          aria-label={`DRIP for ${stock.ticker}`}
+                          title={state.enabled ? 'DRIP enabled - click to disable' : 'Enable DRIP'}
                         >
                           {state.enabled ? 'ON' : 'OFF'}
                         </button>
                         {state.enabled && pending > 0 && (
                           <span
                             className="drip-pending-dot"
+                            role="status"
+                            aria-label={`${pending} payment(s) pending`}
                             title={`${pending} payment(s) pending: ${pendingDates.map(d => d.toLocaleDateString('en-CA')).join(', ')}`}
                           ></span>
                         )}
@@ -230,6 +246,8 @@ export default function PortfolioTable({ stocks, period, onRemove, dripState, on
                           <button
                             className="drip-log-toggle"
                             onClick={() => setExpandedLog(isLogExpanded ? null : stock.ticker)}
+                            aria-expanded={isLogExpanded}
+                            aria-label={`DRIP history for ${stock.ticker}, ${log.length} entries`}
                             title="View DRIP history"
                           >
                             {isLogExpanded ? '▼' : '▶'} {log.length}
@@ -238,6 +256,7 @@ export default function PortfolioTable({ stocks, period, onRemove, dripState, on
                         <button
                           className="drip-manual-btn"
                           onClick={() => setManualForm(isManualOpen ? null : { ticker: stock.ticker })}
+                          aria-label={`Add manual DRIP for ${stock.ticker}`}
                           title="Add manual DRIP entry"
                         >
                           +
@@ -255,7 +274,7 @@ export default function PortfolioTable({ stocks, period, onRemove, dripState, on
                     >
                       Sell
                     </button>
-                    <button className="remove-btn" onClick={() => onRemove(stock.ticker)} title="Remove">
+                    <button className="remove-btn" onClick={() => onRemove(stock.ticker)} aria-label={`Remove ${stock.ticker}`} title="Remove">
                       &times;
                     </button>
                   </td>
@@ -283,7 +302,8 @@ export default function PortfolioTable({ stocks, period, onRemove, dripState, on
                           <input type="number" name="salePrice" step="0.01" min="0.01" required defaultValue={stock.price} />
                         </label>
                         <button type="submit" className="sell-submit">Sell</button>
-                        <button type="button" className="manual-drip-cancel" onClick={() => setSellForm(null)}>Cancel</button>
+                        <button type="button" className="manual-drip-cancel" onClick={() => { setSellForm(null); setFormError(null); }}>Cancel</button>
+                        {formError && <span className="form-error" role="alert">{formError}</span>}
                       </form>
                     </td>
                   </tr>
@@ -311,7 +331,8 @@ export default function PortfolioTable({ stocks, period, onRemove, dripState, on
                           <input type="number" name="price" step="0.01" min="0.01" required defaultValue={stock.price} />
                         </label>
                         <button type="submit" className="manual-drip-submit">Add DRIP</button>
-                        <button type="button" className="manual-drip-cancel" onClick={() => setManualForm(null)}>Cancel</button>
+                        <button type="button" className="manual-drip-cancel" onClick={() => { setManualForm(null); setFormError(null); }}>Cancel</button>
+                        {formError && <span className="form-error" role="alert">{formError}</span>}
                       </form>
                     </td>
                   </tr>

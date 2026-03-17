@@ -17,13 +17,13 @@ function ClickableTick({ x, y, payload, onTickerClick }) {
         y={0}
         dy={4}
         textAnchor="end"
-        fill="#94a3b8"
+        fill="var(--text-dim)"
         fontSize={11}
         transform="rotate(-45)"
         style={{ cursor: 'pointer' }}
         onClick={() => onTickerClick(payload.value)}
-        onMouseOver={(e) => { e.target.style.fill = '#818cf8'; }}
-        onMouseOut={(e) => { e.target.style.fill = '#94a3b8'; }}
+        onMouseOver={(e) => { e.target.style.fill = 'var(--accent)'; }}
+        onMouseOut={(e) => { e.target.style.fill = 'var(--text-dim)'; }}
       >
         {payload.value}
       </text>
@@ -49,11 +49,13 @@ export default function DividendChart({ stocks, period, onTickerClick }) {
     if (entry?.ticker && onTickerClick) onTickerClick(entry.ticker);
   };
 
+  const chartSummary = data.map(d => `${d.ticker}: ${formatCurrency(d.amount, d.currency)}`).join(', ');
+
   return (
-    <div className="chart-container">
-      <h3 className="chart-title">
+    <div className="chart-container" role="img" aria-label={`${period} dividend income chart. ${chartSummary}`}>
+      <h2 className="chart-title">
         Dividend Income by Stock ({period.charAt(0).toUpperCase() + period.slice(1)})
-      </h3>
+      </h2>
       <ResponsiveContainer width="100%" height={350}>
         <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 40 }}>
           <XAxis
@@ -61,10 +63,10 @@ export default function DividendChart({ stocks, period, onTickerClick }) {
             tick={<ClickableTick onTickerClick={onTickerClick} />}
             height={60}
           />
-          <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} />
+          <YAxis tick={{ fill: 'var(--text-dim)', fontSize: 11 }} />
           <Tooltip
-            contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8 }}
-            labelStyle={{ color: '#e2e8f0' }}
+            contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8 }}
+            labelStyle={{ color: 'var(--text-bright)' }}
             formatter={(value, _name, props) =>
               [formatCurrency(value, props.payload.currency), 'Dividend']
             }
@@ -76,7 +78,7 @@ export default function DividendChart({ stocks, period, onTickerClick }) {
             <LabelList
               dataKey="amount"
               position="top"
-              style={{ fill: '#94a3b8', fontSize: 10, fontWeight: 600 }}
+              style={{ fill: 'var(--text-dim)', fontSize: 10, fontWeight: 600 }}
               formatter={(v) => `$${v.toFixed(0)}`}
             />
           </Bar>

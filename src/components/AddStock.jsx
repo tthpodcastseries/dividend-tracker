@@ -32,6 +32,7 @@ export default function AddStock({ onAdd }) {
         value={ticker}
         onChange={(e) => setTicker(e.target.value)}
         placeholder="Ticker (e.g. AAPL)"
+        aria-label="Ticker symbol"
         required
         autoFocus
       />
@@ -40,6 +41,7 @@ export default function AddStock({ onAdd }) {
         value={name}
         onChange={(e) => setName(e.target.value)}
         placeholder="Company name (optional)"
+        aria-label="Company name"
       />
       <input
         type="number"
@@ -48,9 +50,10 @@ export default function AddStock({ onAdd }) {
         value={shares}
         onChange={(e) => setShares(e.target.value)}
         placeholder="Shares"
+        aria-label="Number of shares"
         required
       />
-      <select value={currency} onChange={(e) => setCurrency(e.target.value)}>
+      <select value={currency} onChange={(e) => setCurrency(e.target.value)} aria-label="Currency">
         <option value="USD">USD</option>
         <option value="CAD">CAD</option>
       </select>
