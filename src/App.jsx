@@ -30,8 +30,9 @@ export default function App() {
   const [period, setPeriod] = useState('monthly');
   const [showApiModal, setShowApiModal] = useState(false);
 
+  // Auto-fetch on launch when API key is available
   useEffect(() => {
-    if (apiKey && stocks.some(s => s.loading)) {
+    if (apiKey) {
       fetchAllDividends();
     }
   }, [apiKey]);
