@@ -8,7 +8,7 @@ const PORTFOLIO_KEY = 'dividend_tracker_portfolio';
 const API_KEY_KEY = 'dividend_tracker_api_key';
 const SALES_KEY = 'dividend_tracker_sales';
 const DATA_VERSION_KEY = 'dividend_tracker_data_version';
-const CURRENT_DATA_VERSION = 2; // Bump this when defaultPortfolio prices/shares change
+const CURRENT_DATA_VERSION = 4; // Bump this when defaultPortfolio prices/shares change
 
 function loadPortfolio() {
   try {
@@ -32,14 +32,16 @@ export function usePortfolio() {
       // Merge saved data with defaults to pick up any new fields (e.g. price, payFrequency)
       const defaultMap = {};
       for (const d of defaultPortfolio) defaultMap[d.ticker] = d;
-      const merged = saved.map(s => {
+      // On version sync, drop tickers that have been removed from defaults (e.g. closed positions)
+      const filtered = needsSync ? saved.filter(s => defaultMap[s.ticker]) : saved;
+      const merged = filtered.map(s => {
         const def = defaultMap[s.ticker] || {};
         return {
           ...s,
-          // On version bump, sync prices and shares from defaults
+          // On version bump, sync prices, shares, and buyPrice from defaults
           price: needsSync && def.price ? def.price : (s.price || def.price || 0),
           shares: needsSync && def.shares ? def.shares : s.shares,
-          buyPrice: s.buyPrice || def.buyPrice || 0,
+          buyPrice: needsSync && def.buyPrice ? def.buyPrice : (s.buyPrice || def.buyPrice || 0),
           payFrequency: s.payFrequency || def.payFrequency || 'quarterly',
           payMonths: s.payMonths || def.payMonths || [],
           payDay: s.payDay || def.payDay || 1,
