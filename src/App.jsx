@@ -10,6 +10,7 @@ import DividendChart from './components/DividendChart';
 import DripProjection from './components/DripProjection';
 import StockChartModal from './components/StockChartModal';
 import { clearDividendCache } from './utils/api';
+import { clearQuoteCache } from './utils/quotes';
 import './App.css';
 
 export default function App() {
@@ -19,6 +20,8 @@ export default function App() {
     setApiKey,
     fetching,
     fetchAllDividends,
+    fetchAllQuotes,
+    quotesUpdatedAt,
     addStock,
     removeStock,
     totals,
@@ -55,10 +58,10 @@ export default function App() {
   };
 
   const handleRefresh = () => {
-    if (!window.confirm('This will clear all cached data and reload. Continue?')) return;
     clearDividendCache();
-    localStorage.removeItem('dividend_tracker_portfolio');
-    window.location.reload();
+    clearQuoteCache();
+    fetchAllQuotes(true);
+    if (apiKey) fetchAllDividends();
   };
 
   return (
@@ -79,8 +82,13 @@ export default function App() {
       <nav className="toolbar" aria-label="Portfolio controls">
         <TimeToggle period={period} onChange={setPeriod} />
         <div className="toolbar-right">
+          {quotesUpdatedAt && (
+            <span className="quote-status" role="status">
+              Prices as of {new Date(quotesUpdatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+            </span>
+          )}
           <AddStock onAdd={addStock} />
-          <button className="refresh-btn" onClick={handleRefresh} title="Clear cache & refresh">
+          <button className="refresh-btn" onClick={handleRefresh} title="Fetch latest prices & dividend data">
             Refresh Data
           </button>
           <button className="key-btn" onClick={() => setShowApiModal(true)} title="Change API key">

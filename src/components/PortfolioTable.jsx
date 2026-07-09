@@ -213,7 +213,7 @@ export default function PortfolioTable({ stocks, period, onRemove, dripState, on
                   </td>
                   <td className={`right pl-cell ${unrealizedPL !== null ? (unrealizedPL >= 0 ? 'pl-positive' : 'pl-negative') : ''}`}>
                     {unrealizedPL !== null ? (
-                      <span title={`Buy: ${formatCurrency(stock.buyPrice, stock.currency)} on ${BUY_DATE}`}>
+                      <span title={`Avg cost: ${formatCurrency(stock.buyPrice, stock.currency)} (as of ${BUY_DATE})`}>
                         {unrealizedPL >= 0 ? '+' : ''}{formatCurrency(unrealizedPL, stock.currency)}
                         <span className="pl-pct">
                           {unrealizedPct !== null ? ` (${unrealizedPct >= 0 ? '+' : ''}${(unrealizedPct * 100).toFixed(1)}%)` : ''}

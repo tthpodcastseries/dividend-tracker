@@ -1,14 +1,15 @@
-import { useState, useEffect, useCallback } from 'react';
-import { defaultPortfolio, getApiTicker, nonDividendTickers } from '../utils/defaultPortfolio';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { defaultPortfolio, getApiTicker, nonDividendTickers, removedTickers } from '../utils/defaultPortfolio';
 import { fetchDividendData } from '../utils/api';
 import { calcDividends } from '../utils/dividendCalc';
 import { loadDripState, saveDripState, getPendingPayments, calcDripPurchase, calcManualDripPurchase } from '../utils/dripTracker';
+import { fetchQuotes, QUOTE_REFRESH_MS } from '../utils/quotes';
 
 const PORTFOLIO_KEY = 'dividend_tracker_portfolio';
 const API_KEY_KEY = 'dividend_tracker_api_key';
 const SALES_KEY = 'dividend_tracker_sales';
 const DATA_VERSION_KEY = 'dividend_tracker_data_version';
-const CURRENT_DATA_VERSION = 4; // Bump this when defaultPortfolio prices/shares change
+const CURRENT_DATA_VERSION = 5; // Bump this when defaultPortfolio prices/shares change
 
 function loadPortfolio() {
   try {
@@ -32,22 +33,40 @@ export function usePortfolio() {
       // Merge saved data with defaults to pick up any new fields (e.g. price, payFrequency)
       const defaultMap = {};
       for (const d of defaultPortfolio) defaultMap[d.ticker] = d;
-      // On version sync, drop tickers that have been removed from defaults (e.g. closed positions)
-      const filtered = needsSync ? saved.filter(s => defaultMap[s.ticker]) : saved;
-      const merged = filtered.map(s => {
-        const def = defaultMap[s.ticker] || {};
-        return {
-          ...s,
-          // On version bump, sync prices, shares, and buyPrice from defaults
-          price: needsSync && def.price ? def.price : (s.price || def.price || 0),
-          shares: needsSync && def.shares ? def.shares : s.shares,
-          buyPrice: needsSync && def.buyPrice ? def.buyPrice : (s.buyPrice || def.buyPrice || 0),
-          payFrequency: s.payFrequency || def.payFrequency || 'quarterly',
-          payMonths: s.payMonths || def.payMonths || [],
-          payDay: s.payDay || def.payDay || 1,
-        };
-      });
-      if (needsSync) localStorage.setItem(DATA_VERSION_KEY, String(CURRENT_DATA_VERSION));
+      const merged = saved
+        // On version bump, drop positions sold since the last sync
+        .filter(s => !(needsSync && removedTickers.has(s.ticker)))
+        .map(s => {
+          const def = defaultMap[s.ticker] || {};
+          return {
+            ...s,
+            // On version bump, sync prices, shares, and buy price from defaults
+            price: needsSync && def.price ? def.price : (s.price || def.price || 0),
+            shares: needsSync && def.shares ? def.shares : s.shares,
+            buyPrice: needsSync && def.buyPrice ? def.buyPrice : (s.buyPrice || def.buyPrice || 0),
+            payFrequency: s.payFrequency || def.payFrequency || 'quarterly',
+            payMonths: s.payMonths || def.payMonths || [],
+            payDay: s.payDay || def.payDay || 1,
+          };
+        });
+      if (needsSync) {
+        // Add default positions the saved portfolio doesn't have yet
+        const have = new Set(merged.map(s => s.ticker));
+        for (const d of defaultPortfolio) {
+          if (!have.has(d.ticker)) {
+            merged.push({
+              ...d,
+              dividendPerShare: d.dividendPerShare || 0,
+              dividendYield: d.dividendYield || 0,
+              dividends: calcDividends(d.dividendPerShare || 0, d.shares),
+              loading: false,
+              error: null,
+            });
+          }
+        }
+        merged.sort((a, b) => a.ticker.localeCompare(b.ticker));
+        localStorage.setItem(DATA_VERSION_KEY, String(CURRENT_DATA_VERSION));
+      }
       return merged;
     }
     localStorage.setItem(DATA_VERSION_KEY, String(CURRENT_DATA_VERSION));
@@ -74,6 +93,41 @@ export function usePortfolio() {
 
   const [apiKey, setApiKeyState] = useState(() => localStorage.getItem(API_KEY_KEY) || '');
   const [fetching, setFetching] = useState(false);
+  const [quotesUpdatedAt, setQuotesUpdatedAt] = useState(null);
+
+  // Ref mirror so the quote poller doesn't need stocks in its deps
+  // (which would reset the interval on every price update)
+  const stocksRef = useRef(stocks);
+  useEffect(() => { stocksRef.current = stocks; }, [stocks]);
+
+  // Fetch live prices for all holdings (single batched request)
+  const fetchAllQuotes = useCallback(async (force = false) => {
+    const result = await fetchQuotes(stocksRef.current, force);
+    if (!result?.quotes) return;
+    setStocks(prev => prev.map(s => {
+      const q = result.quotes[s.ticker];
+      if (!q?.price) return s;
+      return { ...s, price: q.price, prevClose: q.prevClose };
+    }));
+    setQuotesUpdatedAt(result.fetchedAt);
+  }, []);
+
+  // Live prices: fetch on load, poll while the tab is visible,
+  // and refresh immediately when the tab regains focus
+  useEffect(() => {
+    fetchAllQuotes();
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible') fetchAllQuotes();
+    }, QUOTE_REFRESH_MS);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') fetchAllQuotes();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [fetchAllQuotes]);
 
   const setApiKey = useCallback((key) => {
     localStorage.setItem(API_KEY_KEY, key);
@@ -337,6 +391,8 @@ export function usePortfolio() {
     setApiKey,
     fetching,
     fetchAllDividends,
+    fetchAllQuotes,
+    quotesUpdatedAt,
     addStock,
     removeStock,
     updateShares,

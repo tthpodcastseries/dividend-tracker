@@ -3,8 +3,6 @@ import { useFocusTrap } from '../utils/focusTrap';
 
 // Map tickers to TradingView symbol format
 function getTradingViewSymbol(ticker, currency) {
-  if (ticker === 'BTC') return 'BITSTAMP:BTCUSD';
-  if (ticker === 'FLT') return 'TSXV:FLT';
   if (currency === 'CAD') return `TSX:${ticker}`;
   return ticker;
 }
