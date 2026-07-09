@@ -4,6 +4,7 @@ import { fetchDividendData } from '../utils/api';
 import { calcDividends } from '../utils/dividendCalc';
 import { loadDripState, saveDripState, getPendingPayments, calcDripPurchase, calcManualDripPurchase } from '../utils/dripTracker';
 import { fetchQuotes, QUOTE_REFRESH_MS } from '../utils/quotes';
+import { applyPendingRecurringBuys, reconcileRecurringShares, loadRecurringState } from '../utils/recurringBuys';
 
 const PORTFOLIO_KEY = 'dividend_tracker_portfolio';
 const API_KEY_KEY = 'dividend_tracker_api_key';
@@ -67,17 +68,18 @@ export function usePortfolio() {
         merged.sort((a, b) => a.ticker.localeCompare(b.ticker));
         localStorage.setItem(DATA_VERSION_KEY, String(CURRENT_DATA_VERSION));
       }
-      return merged;
+      // Fold in any recurring-buy shares logged but not yet applied
+      return reconcileRecurringShares(merged);
     }
     localStorage.setItem(DATA_VERSION_KEY, String(CURRENT_DATA_VERSION));
-    return defaultPortfolio.map(s => ({
+    return reconcileRecurringShares(defaultPortfolio.map(s => ({
       ...s,
       dividendPerShare: s.dividendPerShare || 0,
       dividendYield: s.dividendYield || 0,
       dividends: calcDividends(s.dividendPerShare || 0, s.shares),
       loading: false,
       error: null,
-    }));
+    })));
   });
 
   const [dripState, setDripState] = useState(() => loadDripState());
@@ -128,6 +130,23 @@ export function usePortfolio() {
       document.removeEventListener('visibilitychange', onVisible);
     };
   }, [fetchAllQuotes]);
+
+  // Recurring weekly buys: back-fill any Mondays since the last catch-up
+  const [recurringBuyLog, setRecurringBuyLog] = useState(() => loadRecurringState().log || []);
+  const [recurringBuyResults, setRecurringBuyResults] = useState(null);
+  const clearRecurringBuyResults = useCallback(() => setRecurringBuyResults(null), []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const result = await applyPendingRecurringBuys();
+      if (cancelled || !result?.purchases?.length) return;
+      setStocks(prev => reconcileRecurringShares(prev));
+      setRecurringBuyLog(loadRecurringState().log || []);
+      setRecurringBuyResults(result.purchases);
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const setApiKey = useCallback((key) => {
     localStorage.setItem(API_KEY_KEY, key);
@@ -393,6 +412,9 @@ export function usePortfolio() {
     fetchAllDividends,
     fetchAllQuotes,
     quotesUpdatedAt,
+    recurringBuyLog,
+    recurringBuyResults,
+    clearRecurringBuyResults,
     addStock,
     removeStock,
     updateShares,

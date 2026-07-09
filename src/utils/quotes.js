@@ -11,6 +11,20 @@ const PROXIES = [
   (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
 ];
 
+// Fetch a Yahoo Finance URL through the proxy chain; returns parsed JSON or null
+export async function fetchYahooJson(url) {
+  for (const proxy of PROXIES) {
+    try {
+      const res = await fetch(proxy(url));
+      if (!res.ok) continue;
+      return await res.json();
+    } catch {
+      // proxy down — try the next one
+    }
+  }
+  return null;
+}
+
 // Yahoo symbol for a holding; all CAD tickers trade on the TSX (.TO)
 export function getYahooSymbol(ticker, currency) {
   return currency === 'CAD' ? `${ticker}.TO` : ticker;
@@ -42,37 +56,29 @@ export async function fetchQuotes(stocks, force = false) {
   const symbols = Object.keys(symbolMap).join(',');
   const url = `https://query1.finance.yahoo.com/v7/finance/spark?symbols=${symbols}&range=1d&interval=15m`;
 
-  for (const proxy of PROXIES) {
-    try {
-      const res = await fetch(proxy(url));
-      if (!res.ok) continue;
-      const json = await res.json();
-      const results = json?.spark?.result;
-      if (!Array.isArray(results) || results.length === 0) continue;
-
-      const quotes = {};
-      for (const r of results) {
-        const meta = r?.response?.[0]?.meta;
-        const ticker = symbolMap[r.symbol];
-        if (!ticker || !meta?.regularMarketPrice) continue;
-        quotes[ticker] = {
-          price: meta.regularMarketPrice,
-          prevClose: meta.chartPreviousClose ?? meta.previousClose ?? null,
-        };
-      }
-      if (Object.keys(quotes).length === 0) continue;
-
+  const json = await fetchYahooJson(url);
+  const results = json?.spark?.result;
+  if (Array.isArray(results) && results.length > 0) {
+    const quotes = {};
+    for (const r of results) {
+      const meta = r?.response?.[0]?.meta;
+      const ticker = symbolMap[r.symbol];
+      if (!ticker || !meta?.regularMarketPrice) continue;
+      quotes[ticker] = {
+        price: meta.regularMarketPrice,
+        prevClose: meta.chartPreviousClose ?? meta.previousClose ?? null,
+      };
+    }
+    if (Object.keys(quotes).length > 0) {
       const payload = { quotes, fetchedAt: Date.now() };
       try {
         localStorage.setItem(QUOTE_CACHE_KEY, JSON.stringify(payload));
       } catch { /* storage full — quotes still returned */ }
       return payload;
-    } catch {
-      // proxy down — try the next one
     }
   }
 
-  // All proxies failed; serve stale cache if we have one
+  // Fetch failed; serve stale cache if we have one
   return cached || null;
 }
 

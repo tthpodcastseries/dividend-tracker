@@ -4,22 +4,28 @@ import { getPendingPayments, getPendingPaymentDates } from '../utils/dripTracker
 import { BUY_DATE } from '../utils/defaultPortfolio';
 
 /**
- * Calculate weighted average cost basis factoring in original buy and DRIP purchases.
+ * Calculate weighted average cost basis factoring in the original buy,
+ * DRIP purchases, and recurring weekly buys.
  * Returns { avgCost, totalCost, totalShares } or null if no buyPrice.
  */
-function calcAvgCost(stock, dripLog) {
+function calcAvgCost(stock, dripLog, buyLog) {
   if (!stock.buyPrice) return null;
 
-  // Original purchase: all shares minus any DRIP-added shares
-  const dripShares = (dripLog || []).reduce((sum, entry) => sum + entry.sharesPurchased, 0);
-  const originalShares = stock.shares - dripShares;
+  // Every purchase made after the original position, at its actual price
+  const laterPurchases = [
+    ...(dripLog || []).map(e => ({ shares: e.sharesPurchased, price: e.priceAtPurchase })),
+    ...(buyLog || []).map(e => ({ shares: e.shares, price: e.price })),
+  ];
+
+  // Original purchase: all shares minus any later-added shares
+  const laterShares = laterPurchases.reduce((sum, e) => sum + e.shares, 0);
+  const originalShares = stock.shares - laterShares;
   let totalCost = originalShares * stock.buyPrice;
   let totalShares = originalShares;
 
-  // Add each DRIP purchase at its actual price
-  for (const entry of (dripLog || [])) {
-    totalCost += entry.sharesPurchased * entry.priceAtPurchase;
-    totalShares += entry.sharesPurchased;
+  for (const entry of laterPurchases) {
+    totalCost += entry.shares * entry.price;
+    totalShares += entry.shares;
   }
 
   return {
@@ -29,7 +35,7 @@ function calcAvgCost(stock, dripLog) {
   };
 }
 
-export default function PortfolioTable({ stocks, period, onRemove, dripState, onToggleDrip, onApplyDrip, onManualDrip, onSell, salesLog, onTickerClick }) {
+export default function PortfolioTable({ stocks, period, onRemove, dripState, onToggleDrip, onApplyDrip, onManualDrip, onSell, salesLog, recurringBuyLog, onTickerClick }) {
   const [dripResults, setDripResults] = useState(null);
   const [expandedLog, setExpandedLog] = useState(null);
   const [manualForm, setManualForm] = useState(null); // { ticker } when open
@@ -171,7 +177,7 @@ export default function PortfolioTable({ stocks, period, onRemove, dripState, on
             const log = state.log || [];
             const isManualOpen = manualForm?.ticker === stock.ticker;
 
-            const costBasis = calcAvgCost(stock, log);
+            const costBasis = calcAvgCost(stock, log, (recurringBuyLog || []).filter(b => b.ticker === stock.ticker));
             const unrealizedPL = costBasis && stock.price
               ? (stock.price - costBasis.avgCost) * stock.shares
               : null;

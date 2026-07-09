@@ -22,6 +22,9 @@ export default function App() {
     fetchAllDividends,
     fetchAllQuotes,
     quotesUpdatedAt,
+    recurringBuyLog,
+    recurringBuyResults,
+    clearRecurringBuyResults,
     addStock,
     removeStock,
     totals,
@@ -99,6 +102,18 @@ export default function App() {
 
       {fetching && <div className="fetching-bar" role="status" aria-live="polite">Fetching dividend data...</div>}
 
+      {recurringBuyResults && (
+        <div className="drip-results-banner" role="status">
+          <strong>Weekly buys applied</strong>
+          {recurringBuyResults.map((p, i) => (
+            <span key={i} className="sell-result-item">
+              {p.date}: {p.ticker} +{p.shares.toFixed(4)} @ {new Intl.NumberFormat('en-CA', { style: 'currency', currency: p.currency }).format(p.price)}
+            </span>
+          ))}
+          <button className="banner-dismiss" onClick={clearRecurringBuyResults} aria-label="Dismiss">&times;</button>
+        </div>
+      )}
+
       <DividendSummary totals={totals} activePeriod={period} />
       <DividendChart stocks={stocks} period={period} onTickerClick={handleTickerClick} />
       <PortfolioTable
@@ -111,6 +126,7 @@ export default function App() {
         onManualDrip={applyManualDrip}
         onSell={sellShares}
         salesLog={salesLog}
+        recurringBuyLog={recurringBuyLog}
         onTickerClick={handleTickerClick}
       />
       <DripProjection stocks={stocks} />
